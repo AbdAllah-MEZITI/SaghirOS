@@ -1,7 +1,10 @@
+# compiler, compiler options
 CC=gcc
 CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -DKERNEL_SOS -I include/
+
 ASM=gcc
 ASMFLAGS= -m32 -I include/
+
 LD=ld
 LDFLAGS= --warn-common
 LDFLAGS+= -n
@@ -9,32 +12,36 @@ LDFLAGS+= -m elf_i386
 LDFLAGS+= -T linker/link.ld
 
 
+TARGET=SaghirOS
+CDROM=$(TARGET).iso
+
+# files and directoys
 build_dir=build
 kernel_name=$(build_dir)/kernel
 
-#ASM_SOURCES= $(shell find . -type f -name '*.S')
-ASM_SOURCES= boot/boot.S
-#C_SOURCES= $(shell find . -type f -name '*.c')
-C_SOURCES= os/kernel.c
+
+ASM_SOURCES= $(shell find ./boot -type f -name '*.S')
+C_SOURCES= $(shell find ./os -type f -name '*.c')
 
 OBJECTS= $(ASM_SOURCES:.S=.o)
 OBJECTS+=$(C_SOURCES:.c=.o)
+
 
 .PHONY: all clean run debug doc
 
 all: $(kernel_name)
 
+# clean
 clean:
-	rm $(OBJECTS) $(kernel_name)
-	rm myos.iso
-	#rm -rf $(build_dir)/isodir
+	rm -rf $(OBJECTS) $(kernel_name)
+	rm -rf $(CDROM)
 	rm -rf $(build_dir)
 
 # lunch qemu and boot from the .iso cdrom
 run: $(kernel_name)
 	qemu-system-i386 -kernel $(kernel_name)
 runiso: iso
-	qemu-system-i386 -cdrom myos.iso
+	qemu-system-i386 -cdrom $(CDROM)
 
 debug: $(kernel_name)
 	qemu-system-i386 -s -S -kernel $(kernel_name)
@@ -43,10 +50,10 @@ debug: $(kernel_name)
 iso:$(kernel_name)
 	mkdir	$(build_dir)/isodir
 	mkdir	$(build_dir)/isodir/boot
-	cp	$(kernel_name)	$(build_dir)/isodir/boot/myOS.bin
+	cp	$(kernel_name)	$(build_dir)/isodir/boot/$(TARGET).bin
 	mkdir	$(build_dir)/isodir/boot/grub
 	cp	tools/grub.cfg $(build_dir)/isodir/boot/grub/grub.cfg
-	grub-mkrescue -o myos.iso $(build_dir)/isodir
+	grub-mkrescue -o $(CDROM) $(build_dir)/isodir
 
 doc:
 	doxygen

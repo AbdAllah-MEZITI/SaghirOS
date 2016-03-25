@@ -55,7 +55,7 @@ cmain (unsigned long magic, unsigned long addr)
   /* Clear the screen.  */
   cls ();
 
-	printf("Welcom to myOS\n");
+	printf("Welcom to SaghirOS\n");
 
   /* Am I booted by a Multiboot-compliant boot loader?  */
   if (magic != MULTIBOOT2_BOOTLOADER_MAGIC)
