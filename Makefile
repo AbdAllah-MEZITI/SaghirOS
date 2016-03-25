@@ -15,7 +15,7 @@ LDFLAGS+= -T linker/link.ld
 TARGET=SaghirOS
 CDROM=$(TARGET).iso
 
-# files and directoys
+# files and directories
 build_dir=build
 kernel_name=$(build_dir)/kernel
 
@@ -33,9 +33,9 @@ all: $(kernel_name)
 
 # clean
 clean:
-	rm -rf $(OBJECTS) $(kernel_name)
-	rm -rf $(CDROM)
+	rm -rf $(OBJECTS)
 	rm -rf $(build_dir)
+	rm -rf $(CDROM)
 
 # lunch qemu and boot from the .iso cdrom
 run: $(kernel_name)
