@@ -1,6 +1,6 @@
 # compiler, compiler options
 CC=gcc
-CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -DKERNEL_SOS -I include/
+CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -DKERNEL_SOS -I include -I lib
 
 ASM=gcc
 ASMFLAGS= -m32 -I include/
@@ -21,7 +21,7 @@ kernel_name=$(build_dir)/kernel
 
 
 ASM_SOURCES= $(shell find ./boot -type f -name '*.S')
-C_SOURCES= $(shell find ./os -type f -name '*.c')
+C_SOURCES= $(shell find ./os ./lib -type f -name '*.c')
 
 OBJECTS= $(ASM_SOURCES:.S=.o)
 OBJECTS+=$(C_SOURCES:.c=.o)
