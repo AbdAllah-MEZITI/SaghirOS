@@ -1,5 +1,14 @@
 #include "stdio.h"
 
+/* Variables.  */
+/* Save the X position.  */
+static int xpos;
+/* Save the Y position.  */
+static int ypos;
+/* Point to the video memory.  */
+static volatile unsigned char *video;
+
+
 /* Clear the screen and initialize VIDEO, XPOS and YPOS.  */
 void
 cls (void)
