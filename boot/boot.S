@@ -44,12 +44,11 @@ start:
 _start:
 	jmp	multiboot_entry
 
-//.section ".boot" , "aw"
 	/* Align 64 bits boundary.  */
 	.align	8
 	
 /* ******************************************************************************** */
-	/* Multiboot header.  */
+	/* Multiboot2 header.  */
 multiboot_header:
 	/* magic */
 	.long	MULTIBOOT2_HEADER_MAGIC
@@ -95,8 +94,6 @@ multiboot_header:
 //framebuffer_tag_end:
 
 
-
-
 /*****/
 
 	.short MULTIBOOT_HEADER_TAG_END
@@ -106,39 +103,22 @@ multiboot_header_end:
 /* ******************************************************************************** */
 
 
-/*****/
-/*
-	.text
-
-	.globl	start, _start
-start:
-_start:
-*/
-	//jmp	multiboot_entry
-/*****/
-
+/* Here is the beginning of the code of our operating system */
 multiboot_entry:
-
-	//movl $0x07690748,0xb8000
-	//hlt
 
 	/* Initialize the stack pointer.  */
 	movl	$(stack + STACK_SIZE), %esp
 
 	/* Reset EFLAGS.  */
 	pushl	$0
-	//pushq	$0
 	popf
-	//popfq
 
-	/* Push the pointer to the Multiboot information structure.  */
+	/* Push the "pointer to the Multiboot information structure".  */
 	pushl	%ebx
-	//push	%rbx
-	/* Push the magic value.  */
+	/* Push the "magic value".  */
 	pushl	%eax
-	//push	%rax
 
-	/* Now enter the C main function...  */
+	/* Now enter the C main function of the OS...  */
 	call	EXT_C(cmain)
 
 	/* Halt.  */
