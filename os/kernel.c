@@ -18,8 +18,6 @@
 #include "multiboot2.h"
 #include "stdio.h"
 
-/* Forward declarations.  */
-//void cmain (unsigned long magic, unsigned long addr);
 
 /* Check if MAGIC is valid and print the Multiboot information structure
    pointed by ADDR.  */
