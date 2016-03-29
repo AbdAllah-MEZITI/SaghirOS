@@ -1,12 +1,12 @@
 # compiler, compiler options
 CC=gcc
-CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -DKERNEL_SOS -I include -I lib
+CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -fno-asynchronous-unwind-tables -DKERNEL_SOS -I include -I lib
 
 ASM=gcc
 ASMFLAGS= -m32 -I include/
 
 LD=ld
-LDFLAGS= --warn-common
+LDFLAGS= --warn-common 
 LDFLAGS+= -n
 LDFLAGS+= -m elf_i386
 LDFLAGS+= -T linker/link.ld

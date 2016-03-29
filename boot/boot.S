@@ -36,15 +36,11 @@
 # define AOUT_KLUDGE MULTIBOOT_AOUT_KLUDGE
 #endif
 
-	
-	.text
 
-	.globl	start, _start
-start:
-_start:
-	jmp	multiboot_entry
+	/* The multiboot header itself. It must come first. */
+.section ".multiboot"
 
-	/* Align 64 bits boundary.  */
+	/* Multiboot header Align 64 bits boundary.  */
 	.align	8
 	
 /* ******************************************************************************** */
@@ -102,6 +98,13 @@ multiboot_header:
 multiboot_header_end:
 /* ******************************************************************************** */
 
+
+/* TEXT : Code section */
+	.text
+
+	.globl	start, _start
+start:
+_start:
 
 /* Here is the beginning of the code of our operating system */
 multiboot_entry:
