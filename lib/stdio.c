@@ -92,6 +92,34 @@ putchar (int c)
     goto newline;
 }
 
+/* Put the character C on the screen.  */
+void
+os_putchar (int yp, int xp, unsigned char attribute, int c)
+{
+/* Save the X position.  */
+  /*static int */ xpos=xp;
+/* Save the Y position.  */
+  /*static int */ ypos=yp;
+
+  if (c == '\n' || c == '\r')
+    {
+    newline:
+      xpos = 0;
+      ypos++;
+      if (ypos >= LINES)
+	ypos = 0;
+      return;
+    }
+
+  *(video + (xpos + ypos * COLUMNS) * 2) = c & 0xFF;
+  *(video + (xpos + ypos * COLUMNS) * 2 + 1) = attribute;
+
+  xpos++;
+  if (xpos >= COLUMNS)
+    goto newline;
+}
+
+
 /* Format a string and print it on the screen, just like the libc
    function printf.  */
 void

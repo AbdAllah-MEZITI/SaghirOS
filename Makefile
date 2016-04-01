@@ -1,9 +1,9 @@
 # compiler, compiler options
 CC=gcc
-CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -fno-asynchronous-unwind-tables -DKERNEL_SOS -I include -I lib
+CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -fno-asynchronous-unwind-tables -DKERNEL_SOS -I . -I include -I lib
 
 ASM=gcc
-ASMFLAGS= -m32 -I include/
+ASMFLAGS= -m32 -I . -I include/
 
 LD=ld
 LDFLAGS= --warn-common 
@@ -20,8 +20,8 @@ build_dir=build
 kernel_name=$(build_dir)/kernel
 
 
-ASM_SOURCES= $(shell find ./boot -type f -name '*.S')
-C_SOURCES= $(shell find ./os ./lib -type f -name '*.c')
+ASM_SOURCES= $(shell find ./boot ./hwcore -type f -name '*.S')
+C_SOURCES= $(shell find ./os ./lib ./hwcore -type f -name '*.c')
 
 OBJECTS= $(ASM_SOURCES:.S=.o)
 OBJECTS+=$(C_SOURCES:.c=.o)
@@ -74,5 +74,5 @@ $(kernel_name) : $(OBJECTS) output_dir
 	$(CC) $(CFLAGS) -c $*.c -o $@
 
 output_dir:
-	mkdir $(build_dir)
+	mkdir -p $(build_dir)
 

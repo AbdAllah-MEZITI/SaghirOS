@@ -19,10 +19,68 @@
 #include "stdio.h"
 #include "mbi.h"
 
+#include "x86_videomem.h"
 
-/* Check if MAGIC is valid and print the Multiboot information structure pointed by ADDR.  */
+#include <hwcore/idt.h>
+#include <hwcore/gdt.h>
+#include <hwcore/irq.h>
+#include <hwcore/exception.h>
+#include <hwcore/i8254.h>
+
+
+
+/* Helper function to display each bits of a 32bits integer on the
+   screen as dark or light carrets */
+static void display_bits(unsigned char row, unsigned char col,
+			 unsigned char attribute,
+			 sos_ui32_t integer)
+{
+  int i;
+  /* Scan each bit of the integer, MSb first */
+  for (i = 31 ; i >= 0 ; i--)
+    {
+      /* Test if bit i of 'integer' is set */
+      int bit_i = (integer & (1 << i));
+      /* Ascii 219 => dark carret, Ascii 177 => light carret */
+      unsigned char ascii_code = bit_i?219:177;
+      /*sos_x86_videomem_putchar(row, col++,
+			       attribute,
+			       ascii_code);*/
+      os_putchar (row, col++, attribute, ascii_code);
+    }
+}
+
+
+/* Clock IRQ handler */
+static void clk_it(int intid)
+{
+  static sos_ui32_t clock_count = 0;
+
+  display_bits(0, 48,
+	       SOS_X86_VIDEO_FG_LTGREEN | SOS_X86_VIDEO_BG_BLUE,
+	       clock_count);
+  clock_count++;
+
+}
+
+/* Division by zero exception handler */
+static void divide_ex(int exid)
+{
+  static sos_ui32_t div_count = 0;
+  display_bits(0, 0,
+	       SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
+	       div_count);
+  div_count++;
+}
+
+
+
+/* ====================================================================================== */
+/* Check if MAGIC is valid and print the Multiboot information structure pointed by ADDR. */
+/* ====================================================================================== */
 void cmain (unsigned long magic, unsigned long addr)
-{  
+{
+	unsigned int i;  
 
 	/* Clear the screen.  */
 	cls ();
@@ -45,7 +103,53 @@ void cmain (unsigned long magic, unsigned long addr)
 	printf("================================================================ \n");
 
 	/* Print the Multi-Boot Information structure */
-	mbi_print(magic, addr);
+	//mbi_print(magic, addr);
+
+/* =====================================================================================  */
+
+	/* Setup CPU segmentation and IRQ subsystem */
+	sos_gdt_setup();
+	sos_idt_setup();
+
+
+	/* Setup SOS IRQs and exceptions subsystem */
+	sos_exceptions_setup();
+	sos_irq_setup();
+
+
+	/* Configure the timer so as to raise the IRQ0 at a 100Hz rate */
+	sos_i8254_set_frequency(100);
+
+
+	/* Binding some HW interrupts and exceptions to software routines */
+	sos_irq_set_routine(SOS_IRQ_TIMER,
+			    clk_it);
+	sos_exception_set_routine(SOS_EXCEPT_DIVIDE_ERROR,
+				  divide_ex);
+
+	/* Enabling the HW interrupts here, this will make the timer HW
+     interrupt call our clk_it handler */
+	asm volatile ("sti\n");
+
+
+
+	/* Raise a rafale of 'division by 0' exceptions.
+	All this code is not really needed (equivalent to a bare "i=1/0;"),
+	except when compiling with -O3: "i=1/0;" is considered dead code with gcc -O3. */
+	i = 10;
+	while (1)
+	{
+		/* Stupid function call to fool gcc optimizations */
+		printf("i = 1 / %d...\n", i);
+		//sos_bochs_printf("i = 1 / %d...\n", i);
+		i = 1 / i;
+	}
+
+	/* Will never print this since the "divide by zero" exception always
+	   returns to the faulting instruction (see Intel x86 doc vol 3,
+	   section 5.12), thus re-evaluating the "divide-by-zero" exprssion
+	   and raising the "divide by zero" exception again and again... */
+	printf("Invisible \n");
 
 }
 
