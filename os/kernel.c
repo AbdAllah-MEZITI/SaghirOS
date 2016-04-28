@@ -26,8 +26,11 @@
 #include <hwcore/irq.h>
 #include <hwcore/exception.h>
 #include <hwcore/i8254.h>
+#include "list.h"
+#include "physmem.h"
+/*#include "os/assert.h"*/
 
-
+extern struct multiboot_tag_basic_meminfo* mbi_tag_mem;
 
 /* Helper function to display each bits of a 32bits integer on the
    screen as dark or light carrets */
@@ -63,15 +66,81 @@ static void clk_it(int intid)
 
 }
 
-/* Division by zero exception handler */
-static void divide_ex(int exid)
+
+
+#define MY_PPAGE_NUM_INT 511
+struct my_ppage
 {
-  static sos_ui32_t div_count = 0;
-  display_bits(0, 0,
-	       SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
-	       div_count);
-  div_count++;
+  sos_ui32_t before[MY_PPAGE_NUM_INT];
+  struct my_ppage *prev, *next;
+  sos_ui32_t after[MY_PPAGE_NUM_INT];
+}; /* sizeof() Must be <= 4kB */
+
+static void test_physmem()
+{
+  /* We place the pages we did allocate here */
+  struct my_ppage *ppage_list, *my_ppage;
+  sos_count_t num_alloc_ppages = 0, num_free_ppages = 0;
+
+  ppage_list = NULL;
+  while ((my_ppage = (struct my_ppage*)sos_physmem_ref_physpage_new(FALSE))
+	 != NULL)
+    {
+      int i;
+      num_alloc_ppages++;
+      
+      /* Print the allocation status */
+      printf("Could allocate %d pages      \n", num_alloc_ppages);
+
+      /* We fill this page with its address */
+      for (i = 0 ; i < MY_PPAGE_NUM_INT ; i++)
+	my_ppage->before[i] = my_ppage->after[i] = (sos_ui32_t)my_ppage;
+
+      /* We add this page at the tail of our list of ppages */
+      list_add_tail(ppage_list, my_ppage);
+    }
+
+  /* Now we release these pages in FIFO order */
+  while ((my_ppage = list_pop_head(ppage_list)) != NULL)
+    {
+      /* We make sure this page was not overwritten by any unexpected
+	 value */
+      int i;
+      for (i = 0 ; i < MY_PPAGE_NUM_INT ; i++)
+	{
+	  /* We don't get what we expect ! */
+	  if ((my_ppage->before[i] !=  (sos_ui32_t)my_ppage)
+	      || (my_ppage->after[i] !=  (sos_ui32_t)my_ppage))
+	    {
+	      /* STOP ! */
+	      printf("Page overwritten");
+	      return;
+	    }
+	}
+
+      /* Release the descriptor */
+      if (sos_physmem_unref_physpage((sos_paddr_t)my_ppage) < 0)
+	{
+	  /* STOP ! */
+	  printf("Cannot release page");
+	  return;
+	}
+
+      /* Print the deallocation status */
+      num_free_ppages ++;
+      printf("Could free %d pages      \n",
+		num_free_ppages);
+    }
+
+  /* Print the overall stats */
+  printf("Could allocate %d bytes, could free %d bytes     ",
+			  num_alloc_ppages << SOS_PAGE_SHIFT,
+			  num_free_ppages << SOS_PAGE_SHIFT);
+
+  /*SOS_ASSERT_FATAL(num_alloc_ppages == num_free_ppages);*/
 }
+
+
 
 
 
@@ -80,7 +149,15 @@ static void divide_ex(int exid)
 /* ====================================================================================== */
 void cmain (unsigned long magic, unsigned long addr)
 {
-	unsigned int i;  
+	sos_paddr_t sos_kernel_core_base_paddr, sos_kernel_core_top_paddr;
+
+	/* Grub sends us a structure, called multiboot_info_t with a lot of
+	   precious informations about the system, see the multiboot
+	   documentation for more information. */
+	/*multiboot_info_t *mbi;
+	mbi = (multiboot_info_t *) addr;*/
+
+  
 
 	/* Clear the screen.  */
 	cls ();
@@ -103,7 +180,7 @@ void cmain (unsigned long magic, unsigned long addr)
 	printf("================================================================ \n");
 
 	/* Print the Multi-Boot Information structure */
-	//mbi_print(magic, addr);
+	mbi_print(magic, addr);
 
 /* =====================================================================================  */
 
@@ -124,33 +201,27 @@ void cmain (unsigned long magic, unsigned long addr)
 	/* Binding some HW interrupts and exceptions to software routines */
 	sos_irq_set_routine(SOS_IRQ_TIMER,
 			    clk_it);
-	sos_exception_set_routine(SOS_EXCEPT_DIVIDE_ERROR,
-				  divide_ex);
 
 	/* Enabling the HW interrupts here, this will make the timer HW
      interrupt call our clk_it handler */
 	asm volatile ("sti\n");
 
 
+	/* Multiboot says: "The value returned for upper memory is maximally
+	   the address of the first upper memory hole minus 1 megabyte.". It
+	   also adds: "It is not guaranteed to be this value." aka "YMMV" ;) */
+	sos_physmem_setup((mbi_tag_mem->mem_upper<<10) + (1<<20),
+				& sos_kernel_core_base_paddr,
+				& sos_kernel_core_top_paddr);
 
-	/* Raise a rafale of 'division by 0' exceptions.
-	All this code is not really needed (equivalent to a bare "i=1/0;"),
-	except when compiling with -O3: "i=1/0;" is considered dead code with gcc -O3. */
-	i = 10;
-	while (1)
-	{
-		/* Stupid function call to fool gcc optimizations */
-		printf("i = 1 / %d...\n", i);
-		//sos_bochs_printf("i = 1 / %d...\n", i);
-		i = 1 / i;
-	}
+	test_physmem();
 
-	/* Will never print this since the "divide by zero" exception always
-	   returns to the faulting instruction (see Intel x86 doc vol 3,
-	   section 5.12), thus re-evaluating the "divide-by-zero" exprssion
-	   and raising the "divide by zero" exception again and again... */
-	printf("Invisible \n");
+	/* An operatig system never ends */
+	for (;;)
+		continue;
 
+	return;
+ 
 }
 
 

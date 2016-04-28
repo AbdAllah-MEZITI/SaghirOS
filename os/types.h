@@ -25,12 +25,18 @@
  * SOS basic types definition
  */
 
+/** Physical address */
+typedef unsigned int       sos_paddr_t;
+ 	 
+
 /** Generic virtual address (kernel or user) */
 typedef unsigned int       sos_vaddr_t;
 
 /** Memory size of an object (positive) */
 typedef unsigned int       sos_size_t;
-
+/** Generic count of objects */
+typedef unsigned int       sos_count_t;
+ 
 /** Low-level sizes */
 typedef unsigned long int  sos_ui32_t; /* 32b unsigned */
 typedef unsigned short int sos_ui16_t; /* 16b unsigned */

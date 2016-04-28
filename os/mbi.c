@@ -1,6 +1,8 @@
 #include "multiboot2.h"
 #include "stdio.h"
 
+struct multiboot_tag_basic_meminfo* mbi_tag_mem;
+
 /* Print the Multi-Boot Information structure */
 void mbi_print(unsigned long magic, unsigned long addr)
 {
@@ -41,6 +43,8 @@ void mbi_print(unsigned long magic, unsigned long addr)
 				break;
 
 			case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
+      				mbi_tag_mem = (struct multiboot_tag_basic_meminfo*)tag;
+
 				printf ("mem_lower = %uKB, mem_upper = %uKB\n",
 					((struct multiboot_tag_basic_meminfo *) tag)->mem_lower,
 					((struct multiboot_tag_basic_meminfo *) tag)->mem_upper);

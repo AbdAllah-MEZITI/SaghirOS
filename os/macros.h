@@ -1,5 +1,4 @@
-/* Copyright (C) 2004  The SOS Team
-   Copyright (C) 1999  Free Software Foundation, Inc.
+/* Copyright (C) 2004  The KOS Team
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -16,25 +15,23 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
    USA. 
 */
-#ifndef _SOS_ERRNO_H_
-#define _SOS_ERRNO_H_
+#ifndef _SOS_MACROS_H_
+#define _SOS_MACROS_H_
+
+/** Align on a boundary (MUST be a power of 2), so that return value <= val */
+#define SOS_ALIGN_INF(val,boundary) \
+  (((unsigned)(val)) & (~((boundary)-1)))
+ 
+/** Align on a boundary (MUST be a power of 2), so that return value >= val */
+#define SOS_ALIGN_SUP(val,boundary) \
+  ({ unsigned int __bnd=(boundary); \
+     (((((unsigned)(val))-1) & (~(__bnd - 1))) + __bnd); })
 
 /**
- * @file errno.h
- *
- * SOS return value codes and errors.
+ * @return TRUE if val is a power of 2.
+ * @note val is evaluated multiple times
  */
+#define SOS_IS_POWER_OF_2(val) \
+  ((((val) - 1) & (val)) == 0)
 
-/* Positive values of the error codes */
-#define SOS_OK     0   /* No error */
-#define SOS_EINVAL 1   /* Invalid argument */
-#define SOS_ENOSUP 2   /* Operation not supported */
-#define SOS_ENOMEM 3   /* No available memory */
-#define SOS_EFATAL 255 /* Internal fatal error */
-
-/* A negative value means that an error occured.  For
- *  example -SOS_EINVAL means that the error was "invalid
- * argument" */
-typedef int sos_ret_t;
-
-#endif /* _SOS_ERRNO_H_ */
+#endif /* _SOS_MACROS_H_ */
