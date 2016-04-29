@@ -1,6 +1,6 @@
 # compiler, compiler options
 CC=gcc
-CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -fno-asynchronous-unwind-tables -DKERNEL_SOS -I . -I include -I lib
+CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -fno-asynchronous-unwind-tables -DKERNEL_SOS -I . -I include -I lib -I os
 
 ASM=gcc
 ASMFLAGS= -m32 -I . -I include/
