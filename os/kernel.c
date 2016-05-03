@@ -28,7 +28,7 @@
 #include <hwcore/i8254.h>
 #include "list.h"
 #include "physmem.h"
-/*#include "os/assert.h"*/
+#include "os/assert.h"
 
 extern struct multiboot_tag_basic_meminfo* mbi_tag_mem;
 
@@ -76,21 +76,37 @@ struct my_ppage
   sos_ui32_t after[MY_PPAGE_NUM_INT];
 }; /* sizeof() Must be <= 4kB */
 
+#define LIGNE_ALLOC	2
+#define LIGNE_FREE	LIGNE_ALLOC
+
+#define COLUMN_ALLOC	0
+#define COLUMN_FREE	40
+
+#define LIGNE_MESSAGE	20
+
 static void test_physmem()
 {
+  /* ======================================= */
   /* We place the pages we did allocate here */
+  /* ======================================= */
   struct my_ppage *ppage_list, *my_ppage;
   sos_count_t num_alloc_ppages = 0, num_free_ppages = 0;
 
-  ppage_list = NULL;
-  while ((my_ppage = (struct my_ppage*)sos_physmem_ref_physpage_new(FALSE))
-	 != NULL)
+	//ppage_list = NULL;
+	list_init(ppage_list);
+
+  while ((my_ppage = (struct my_ppage*)sos_physmem_ref_physpage_new(FALSE)) != NULL)
     {
       int i;
       num_alloc_ppages++;
+
+	//if (num_alloc_ppages == 6) break;
+	//printf("0x%08x\n", my_ppage);
       
       /* Print the allocation status */
-      printf("Could allocate %d pages      \n", num_alloc_ppages);
+	os_printf (	LIGNE_ALLOC, COLUMN_ALLOC,
+			SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
+			"Could allocate %d pages      \n", num_alloc_ppages);
 
       /* We fill this page with its address */
       for (i = 0 ; i < MY_PPAGE_NUM_INT ; i++)
@@ -100,12 +116,17 @@ static void test_physmem()
       list_add_tail(ppage_list, my_ppage);
     }
 
+  /* ======================================== */
   /* Now we release these pages in FIFO order */
-  while ((my_ppage = list_pop_head(ppage_list)) != NULL)
+  /* ======================================== */
+  //printf("Release in FIFO order\n");
+
+  while (  ((my_ppage = list_pop_head(ppage_list)) != NULL)  && !list_is_empty(ppage_list) )
     {
       /* We make sure this page was not overwritten by any unexpected
 	 value */
       int i;
+
       for (i = 0 ; i < MY_PPAGE_NUM_INT ; i++)
 	{
 	  /* We don't get what we expect ! */
@@ -113,8 +134,10 @@ static void test_physmem()
 	      || (my_ppage->after[i] !=  (sos_ui32_t)my_ppage))
 	    {
 	      /* STOP ! */
-	      printf("Page overwritten");
-	      return;
+              os_printf(	LIGNE_MESSAGE, COLUMN_FREE,
+ 	                        SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
+				"Page overwritten:%d",i);
+ 	      return;
 	    }
 	}
 
@@ -122,22 +145,32 @@ static void test_physmem()
       if (sos_physmem_unref_physpage((sos_paddr_t)my_ppage) < 0)
 	{
 	  /* STOP ! */
-	  printf("Cannot release page");
-	  return;
+           os_printf(	LIGNE_MESSAGE, COLUMN_FREE,
+ 	                SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
+			"Cannot release page");
+ 		  return;
 	}
 
       /* Print the deallocation status */
       num_free_ppages ++;
-      printf("Could free %d pages      \n",
-		num_free_ppages);
+       os_printf(	LIGNE_FREE, COLUMN_FREE,
+ 	                SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
+			"Could free %d pages      ",
+ 	                num_free_ppages);
+ 
     }
 
+  /* ======================= */
   /* Print the overall stats */
-  printf("Could allocate %d bytes, could free %d bytes     ",
-			  num_alloc_ppages << SOS_PAGE_SHIFT,
-			  num_free_ppages << SOS_PAGE_SHIFT);
+  /* ======================= */
+   os_printf(	LIGNE_ALLOC+1, COLUMN_ALLOC,
+ 	        SOS_X86_VIDEO_FG_LTGREEN | SOS_X86_VIDEO_BG_BLUE,
+		"Could allocate %d bytes, could free %d bytes     ",
+ 	        num_alloc_ppages << SOS_PAGE_SHIFT,
+ 	        num_free_ppages << SOS_PAGE_SHIFT);
+ 
 
-  /*SOS_ASSERT_FATAL(num_alloc_ppages == num_free_ppages);*/
+  SOS_ASSERT_FATAL(num_alloc_ppages == num_free_ppages);
 }
 
 
@@ -207,6 +240,7 @@ void cmain (unsigned long magic, unsigned long addr)
 	asm volatile ("sti\n");
 
 
+/* =====================================================================================  */
 	/* Multiboot says: "The value returned for upper memory is maximally
 	   the address of the first upper memory hole minus 1 megabyte.". It
 	   also adds: "It is not guaranteed to be this value." aka "YMMV" ;) */
@@ -214,6 +248,7 @@ void cmain (unsigned long magic, unsigned long addr)
 				& sos_kernel_core_base_paddr,
 				& sos_kernel_core_top_paddr);
 
+	cls ();
 	test_physmem();
 
 	/* An operatig system never ends */
