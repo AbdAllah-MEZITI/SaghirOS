@@ -31,10 +31,10 @@
        asm("cli\n"); /* disable interrupts -- x86 only */ \
 /*       sos_bochs_printf("%s@%s:%d Assertion " # expr " failed\n", \
 			__PRETTY_FUNCTION__, __FILE__, __LINE__); \
-       sos_x86_videomem_printf(24, 0, 12, \
+*/       os_printf(24, 0, 12, \
                                "%s@%s:%d Assertion " # expr " failed", \
 			       __PRETTY_FUNCTION__, __FILE__, __LINE__); \
-*/       for (;;) asm("hlt;") ; /* Infinite loop, ie simple system halt */ \
+       for (;;) asm("hlt;") ; /* Infinite loop, ie simple system halt */ \
      } \
    })
 
