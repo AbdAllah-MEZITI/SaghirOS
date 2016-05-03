@@ -92,34 +92,6 @@ putchar (int c)
     goto newline;
 }
 
-/* Put the character C on the screen.  */
-void
-os_putchar (int yp, int xp, unsigned char attribute, int c)
-{
-/* Save the X position.  */
-  /*static int */ xpos=xp;
-/* Save the Y position.  */
-  /*static int */ ypos=yp;
-
-  if (c == '\n' || c == '\r')
-    {
-    newline:
-      xpos = 0;
-      ypos++;
-      if (ypos >= LINES)
-	ypos = 0;
-      return;
-    }
-
-  *(video + (xpos + ypos * COLUMNS) * 2) = c & 0xFF;
-  *(video + (xpos + ypos * COLUMNS) * 2 + 1) = attribute;
-
-  xpos++;
-  if (xpos >= COLUMNS)
-    goto newline;
-}
-
-
 /* Format a string and print it on the screen, just like the libc
    function printf.  */
 void
@@ -183,4 +155,104 @@ printf (const char *format, ...)
 	}
     }
 }
+
+
+/* Put the character C on the screen.  */
+void
+os_putchar (int yp, int xp, unsigned char attribute, int c)
+{
+/* Save the X position.  */
+  /*static int */ xpos=xp;
+/* Save the Y position.  */
+  /*static int */ ypos=yp;
+
+  if (c == '\n' || c == '\r')
+    {
+    newline:
+      xpos = 0;
+      ypos++;
+      if (ypos >= LINES)
+	ypos = 0;
+      return;
+    }
+
+  *(video + (xpos + ypos * COLUMNS) * 2) = c & 0xFF;
+  *(video + (xpos + ypos * COLUMNS) * 2 + 1) = attribute;
+
+  xpos++;
+  if (xpos >= COLUMNS)
+    goto newline;
+}
+
+
+/* Format a string and print it on the screen, just like the libc
+   function printf.  */
+void
+os_printf (int yp, int xp, unsigned char attribute, const char *format, ...)
+{
+  char **arg = (char **) &format;
+  int c;
+  char buf[20];
+
+/* Save the X position.  */
+  /*static int */ xpos=xp;
+/* Save the Y position.  */
+  /*static int */ ypos=yp;
+
+  arg++;
+  
+  while ((c = *format++) != 0)
+    {
+      if (c != '%')
+	os_putchar (ypos, xpos, attribute, c);//putchar (c);
+      else
+	{
+	  char *p, *p2;
+	  int pad0 = 0, pad = 0;
+	  
+	  c = *format++;
+	  if (c == '0')
+	    {
+	      pad0 = 1;
+	      c = *format++;
+	    }
+
+	  if (c >= '0' && c <= '9')
+	    {
+	      pad = c - '0';
+	      c = *format++;
+	    }
+
+	  switch (c)
+	    {
+	    case 'd':
+	    case 'u':
+	    case 'x':
+	      itoa (buf, c, *((int *) arg++));
+	      p = buf;
+	      goto string;
+	      break;
+
+	    case 's':
+	      p = *arg++;
+	      if (! p)
+		p = "(null)";
+
+	    string:
+	      for (p2 = p; *p2; p2++);
+	      for (; p2 < p + pad; p2++)
+		os_putchar (ypos, xpos, attribute, (pad0 ? '0' : ' '));//putchar (pad0 ? '0' : ' ');
+	      while (*p)
+		os_putchar (ypos, xpos, attribute, *p++);//putchar (*p++);
+	      break;
+
+	    default:
+	      os_putchar (ypos, xpos, attribute, *((int *) arg++));//putchar (*((int *) arg++));
+	      break;
+	    }
+	}
+    }
+}
+
+
 
