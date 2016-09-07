@@ -1,5 +1,5 @@
 SOS -- SaghirOS
 Copyright (C) 2016 AbdAllah MEZITI
 
-Version "Article 3" -- Physical memory management & physical page allocator
+Version "Article 4" -- Basic routines for x86 mmu supervision
 

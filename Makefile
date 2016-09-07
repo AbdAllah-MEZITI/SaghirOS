@@ -1,9 +1,9 @@
 # compiler, compiler options
 CC=gcc
-CFLAGS  = -m32 -O3 -Wall -nostdlib -nostdinc -ffreestanding -fno-asynchronous-unwind-tables -DKERNEL_SOS -I . -I include -I lib -I os
+CFLAGS  = -m32 -g -O3 -Wall -nostdlib -nostdinc -ffreestanding -fno-asynchronous-unwind-tables -DKERNEL_SOS -I . -I include -I lib -I os
 
 ASM=gcc
-ASMFLAGS= -m32 -I . -I include/
+ASMFLAGS= -m32 -g -I . -I include/
 
 LD=ld
 LDFLAGS= --warn-common 
@@ -43,8 +43,17 @@ run: $(kernel_name)
 runiso: iso
 	qemu-system-i386 -cdrom $(CDROM)
 
-debug: $(kernel_name)
-	qemu-system-i386 -s -S -kernel $(kernel_name)
+# debugging with ddd https://www.gnu.org/software/ddd/
+# make debug
+# launch ddd
+#   ddd console (gdb): target remote localhost:1234
+#   ddd console (gdb): file path_to_[kernel_name]
+#   ddd console (gdb): break cmain (or use the GUI)
+#   ddd console (gdb): continue  
+debug: iso
+	qemu-system-i386 -s -S -cdrom $(CDROM)
+#debug: $(kernel_name)
+#	qemu-system-i386 -s -S -kernel $(kernel_name)
 
 # Create the .iso cdrom image for booting from qemu
 iso:$(kernel_name)

@@ -26,6 +26,7 @@
 #include <hwcore/irq.h>
 #include <hwcore/exception.h>
 #include <hwcore/i8254.h>
+#include <hwcore/paging.h>
 #include "list.h"
 #include "physmem.h"
 #include "os/assert.h"
@@ -67,110 +68,137 @@ static void clk_it(int intid)
 }
 
 
-
-#define MY_PPAGE_NUM_INT 511
-struct my_ppage
+/* Page fault exception handler */
+static void pgflt_ex(int exid)
 {
-  sos_ui32_t before[MY_PPAGE_NUM_INT];
-  struct my_ppage *prev, *next;
-  sos_ui32_t after[MY_PPAGE_NUM_INT];
-}; /* sizeof() Must be <= 4kB */
+  printf("Got page fault\n");
+  os_printf(10, 30,
+			  SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
+			  "Got EXPECTED (?) Page fault ! But where ???");
+  for (;;) ;
+}
 
-#define LIGNE_ALLOC	2
-#define LIGNE_FREE	LIGNE_ALLOC
 
-#define COLUMN_ALLOC	0
-#define COLUMN_FREE	40
-
-#define LIGNE_MESSAGE	20
-
-static void test_physmem()
+static void test_paging(sos_vaddr_t sos_kernel_core_top_vaddr)
 {
-  /* ======================================= */
-  /* We place the pages we did allocate here */
-  /* ======================================= */
-  struct my_ppage *ppage_list, *my_ppage;
-  sos_count_t num_alloc_ppages = 0, num_free_ppages = 0;
+  /* The (linear) address of the page holding the code we are currently executing */
+  sos_vaddr_t vpage_code = SOS_PAGE_ALIGN_INF(test_paging);
 
-	//ppage_list = NULL;
-	list_init(ppage_list);
+  /* The new physical page that will hold the code */
+  sos_paddr_t ppage_new;
 
-  while ((my_ppage = (struct my_ppage*)sos_physmem_ref_physpage_new(FALSE)) != NULL)
+  /* Where this page will be mapped temporarily in order to copy the
+     code into it: right after the kernel code/data */
+  sos_vaddr_t vpage_tmp = sos_kernel_core_top_vaddr;
+
+  unsigned i;
+
+  /* Bind the page fault exception to one of our routines */
+  sos_exception_set_routine(SOS_EXCEPT_PAGE_FAULT,
+			    pgflt_ex);
+
+  /*
+   * Test 1: move the page where we execute the code elsewhere in
+   * physical memory
+   */
+  os_printf(4, 0,
+			  SOS_X86_VIDEO_FG_LTGREEN | SOS_X86_VIDEO_BG_BLUE,
+			  "Moving current code elsewhere in physical memory:");
+
+
+  /* Allocate a new physical page */
+  ppage_new = sos_physmem_ref_physpage_new(FALSE);
+  if (! ppage_new)
     {
-      int i;
-      num_alloc_ppages++;
-
-	//if (num_alloc_ppages == 6) break;
-	//printf("0x%08x\n", my_ppage);
-      
-      /* Print the allocation status */
-	os_printf (	LIGNE_ALLOC, COLUMN_ALLOC,
-			SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
-			"Could allocate %d pages      \n", num_alloc_ppages);
-
-      /* We fill this page with its address */
-      for (i = 0 ; i < MY_PPAGE_NUM_INT ; i++)
-	my_ppage->before[i] = my_ppage->after[i] = (sos_ui32_t)my_ppage;
-
-      /* We add this page at the tail of our list of ppages */
-      list_add_tail(ppage_list, my_ppage);
+      /* STOP ! No memory left */
+      os_printf(20, 0,
+				 SOS_X86_VIDEO_FG_LTRED
+				   | SOS_X86_VIDEO_BG_BLUE,
+				 "test_paging : Cannot allocate page");
+      return;
     }
 
-  /* ======================================== */
-  /* Now we release these pages in FIFO order */
-  /* ======================================== */
-  //printf("Release in FIFO order\n");
+  os_printf(5, 0,
+			  SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
+			  "Hello from the address 0x%x in physical memory",
+			  sos_paging_get_paddr(vpage_code));
 
-  while (  ((my_ppage = list_pop_head(ppage_list)) != NULL)  && !list_is_empty(ppage_list) )
+  os_printf(6, 0,
+			  SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
+			  "Transfer vpage 0x%x: ppage 0x%x -> 0x%x (tmp vpage 0x%x)",
+	                  vpage_code,
+			  sos_paging_get_paddr(vpage_code),
+			  ppage_new,
+			  (unsigned)vpage_tmp);
+
+  /* Map the page somewhere (right after the kernel mapping) in order
+     to copy the code we are currently executing */
+  sos_paging_map(ppage_new, vpage_tmp,
+		 FALSE,
+		 SOS_VM_MAP_ATOMIC
+		 | SOS_VM_MAP_PROT_READ
+		 | SOS_VM_MAP_PROT_WRITE);
+
+  /* Ok, the new page is referenced by the mapping, we can release our reference to it */
+  sos_physmem_unref_physpage(ppage_new);
+
+  /* Copy the contents of the current page of code to this new page mapping */
+  memcpy((void*)vpage_tmp,
+	 (void*)vpage_code,
+	 SOS_PAGE_SIZE);
+
+  /* Transfer the mapping of the current page of code to this new page */
+  sos_paging_map(ppage_new, vpage_code,
+		 FALSE,
+		 SOS_VM_MAP_ATOMIC
+		 | SOS_VM_MAP_PROT_READ
+		 | SOS_VM_MAP_PROT_WRITE);
+  
+  /* Ok, here we are: we have changed the physcal page that holds the
+     code we are executing ;). However, this new page is mapped at 2
+     virtual addresses:
+     - vpage_tmp
+     - vpage_code
+     We can safely unmap it from sos_kernel_core_top_vaddr, while
+     still keeping the vpage_code mapping */
+  sos_paging_unmap(vpage_tmp);
+
+  os_printf(7, 0,
+			  SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
+			  "Hello from the address 0x%x in physical memory",
+			  sos_paging_get_paddr(vpage_code));
+
+  os_printf(9, 0,
+			  SOS_X86_VIDEO_FG_LTGREEN | SOS_X86_VIDEO_BG_BLUE,
+			  "Provoking a page fault:");
+
+  /*
+   * Test 2: make sure the #PF handler works
+   */
+
+  /* Scan part of the kernel up to a page fault. This page fault
+     should occur on the first page unmapped after the kernel area,
+     which is exactly the page we temporarily mapped/unmapped
+     (vpage_tmp) above to move the kernel code we are executing */
+  for (i = vpage_code ; /* none */ ; i += SOS_PAGE_SIZE)
     {
-      /* We make sure this page was not overwritten by any unexpected
-	 value */
-      int i;
-
-      for (i = 0 ; i < MY_PPAGE_NUM_INT ; i++)
-	{
-	  /* We don't get what we expect ! */
-	  if ((my_ppage->before[i] !=  (sos_ui32_t)my_ppage)
-	      || (my_ppage->after[i] !=  (sos_ui32_t)my_ppage))
-	    {
-	      /* STOP ! */
-              os_printf(	LIGNE_MESSAGE, COLUMN_FREE,
- 	                        SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
-				"Page overwritten:%d",i);
- 	      return;
-	    }
-	}
-
-      /* Release the descriptor */
-      if (sos_physmem_unref_physpage((sos_paddr_t)my_ppage) < 0)
-	{
-	  /* STOP ! */
-           os_printf(	LIGNE_MESSAGE, COLUMN_FREE,
- 	                SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
-			"Cannot release page");
- 		  return;
-	}
-
-      /* Print the deallocation status */
-      num_free_ppages ++;
-       os_printf(	LIGNE_FREE, COLUMN_FREE,
- 	                SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
-			"Could free %d pages      ",
- 	                num_free_ppages);
- 
+      unsigned *pint = (unsigned *)SOS_PAGE_ALIGN_INF(i);
+      printf("Test vaddr 0x%x : val=", (unsigned)pint);
+      os_printf(10, 0,
+			      SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
+			      "Test vaddr 0x%x : val=      ",
+			      (unsigned)pint);
+      printf("0x%x\n", *pint);
+      os_printf(10, 30,
+			      SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
+			      "0x%x          ", *pint);
     }
 
-  /* ======================= */
-  /* Print the overall stats */
-  /* ======================= */
-   os_printf(	LIGNE_ALLOC+1, COLUMN_ALLOC,
- 	        SOS_X86_VIDEO_FG_LTGREEN | SOS_X86_VIDEO_BG_BLUE,
-		"Could allocate %d bytes, could free %d bytes     ",
- 	        num_alloc_ppages << SOS_PAGE_SHIFT,
- 	        num_free_ppages << SOS_PAGE_SHIFT);
- 
-
-  SOS_ASSERT_FATAL(num_alloc_ppages == num_free_ppages);
+  /* BAD ! Did not get the page fault... */
+  os_printf(20, 0,
+			  SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
+			  "We should have had a #PF at vaddr 0x%x !",
+			  vpage_tmp);
 }
 
 
@@ -248,8 +276,20 @@ void cmain (unsigned long magic, unsigned long addr)
 				& sos_kernel_core_base_paddr,
 				& sos_kernel_core_top_paddr);
 
+/* =====================================================================================  */
+	/* Switch to paged-memory mode */
+
+	/* Disabling interrupts should seem more correct, but it's not really necessary at this stage */
+	if (sos_paging_setup(
+				sos_kernel_core_base_paddr,
+				sos_kernel_core_top_paddr))
+		printf("Could not setup paged memory mode\n");
+	os_printf(2,0, 
+			SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
+			"Paged-memory mode is activated");
+	
 	cls ();
-	test_physmem();
+	test_paging(sos_kernel_core_top_paddr);
 
 	/* An operatig system never ends */
 	for (;;)
