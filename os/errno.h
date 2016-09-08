@@ -30,6 +30,7 @@
 #define SOS_EINVAL 1   /* Invalid argument */
 #define SOS_ENOSUP 2   /* Operation not supported */
 #define SOS_ENOMEM 3   /* No available memory */
+#define SOS_EBUSY  4   /* Object or device still in use */
 #define SOS_EFATAL 255 /* Internal fatal error */
 
 /* A negative value means that an error occured.  For

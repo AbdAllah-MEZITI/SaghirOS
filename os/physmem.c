@@ -31,6 +31,9 @@ struct physical_page_descr
   /** The reference count for this physical page. > 0 means that the
      page is in the used list. */
   sos_count_t ref_cnt;
+	
+	/** Some data associated with the page when it is mapped in kernel space */
+	struct sos_kmem_range *kernel_range;
 
   /** The other pages on the list (used, free) */
   struct physical_page_descr *prev, *next;
@@ -177,6 +180,9 @@ sos_paddr_t sos_physmem_ref_physpage_new(sos_bool_t can_block)
   /* Mark the page as used (this of course sets the ref count to 1) */
   ppage_descr->ref_cnt ++;
 
+	/* No associated kernel range by default */
+	ppage_descr->kernel_range = NULL;
+
   /* Put the page in the used list */
   list_add_tail(used_ppage, ppage_descr);
   physmem_used_pages ++;
@@ -222,6 +228,10 @@ sos_ret_t sos_physmem_ref_physpage_at(sos_paddr_t ppage_paddr)
   if (ppage_descr->ref_cnt == 1)
     {
       list_delete(free_ppage, ppage_descr);
+
+      /* No associated kernel range by default */
+      ppage_descr->kernel_range = NULL;
+
       list_add_tail(used_ppage, ppage_descr);
       physmem_used_pages ++;
 
@@ -256,6 +266,9 @@ sos_physmem_unref_physpage(sos_paddr_t ppage_paddr)
   ppage_descr->ref_cnt--;
   if (ppage_descr->ref_cnt <= 0)
     {
+	/* Reset associated kernel range */
+	ppage_descr->kernel_range = NULL;
+
       /* Transfer the page, considered USED, to the free list */
       list_delete(used_ppage, ppage_descr);
       physmem_used_pages --;
@@ -267,3 +280,38 @@ sos_physmem_unref_physpage(sos_paddr_t ppage_paddr)
 
   return retval;
 }
+
+struct sos_kmem_range* sos_physmem_get_kmem_range(sos_paddr_t ppage_paddr)
+{
+ 	   struct physical_page_descr *ppage_descr
+ 	     = get_page_descr_at_paddr(ppage_paddr);
+ 	 
+ 	   if (! ppage_descr)
+ 	     return NULL;
+ 	 
+ 	   return ppage_descr->kernel_range;
+}
+ 	 
+ 	 
+sos_ret_t sos_physmem_set_kmem_range(sos_paddr_t ppage_paddr, struct sos_kmem_range *range)
+{
+ 	   struct physical_page_descr *ppage_descr
+ 	     = get_page_descr_at_paddr(ppage_paddr);
+ 	 
+ 	   if (! ppage_descr)
+ 	     return -SOS_EINVAL;
+ 	 
+ 	   ppage_descr->kernel_range = range;
+ 	   return SOS_OK;
+}
+ 	 
+sos_ret_t sos_physmem_get_state(/* out */sos_count_t *total_ppages,
+ 	                                 /* out */sos_count_t *used_ppages)
+{
+ 	   if (total_ppages)
+ 	     *total_ppages = physmem_total_pages;
+ 	   if (used_ppages)
+ 	     *used_ppages = physmem_used_pages;
+ 	   return SOS_OK;
+}
+

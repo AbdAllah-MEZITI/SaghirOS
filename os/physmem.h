@@ -42,6 +42,11 @@
 #define SOS_PAGE_ALIGN_SUP(val) \
   SOS_ALIGN_SUP((val), SOS_PAGE_SIZE)
 
+#define SOS_IS_ALIGNED(val, align) ( ( (val) & ( (align) -1) ) == 0)
+
+#define SOS_IS_PAGE_ALIGNED(addr) \
+	SOS_IS_ALIGNED( (unsigned long)(addr), SOS_PAGE_SIZE)
+	/*( (void *) ( ( ( (unsigned long)addr + (SOS_PAGE_SIZE - 1) ) & SOS_PAGE_MASK ) ) == addr )*/
 
 /**
  * This is the reserved physical interval for the x86 video memory and
@@ -114,6 +119,27 @@ sos_ret_t sos_physmem_ref_physpage_at(sos_paddr_t ppage_paddr);
  * unreferenced, <0 when the page address is invalid
  */
 sos_ret_t sos_physmem_unref_physpage(sos_paddr_t ppage_paddr);
+
+ #include <os/kmem_vmm.h>
+ 	 
+/**
+ * Return the kernel memory allocation range associated with the given
+ * physical page, or NULL when page has no associated range
+ *
+ * @param ppage_paddr Physical address of the page (MUST be page-aligned)
+ */
+struct sos_kmem_range* sos_physmem_get_kmem_range(sos_paddr_t ppage_paddr);
+ 	 
+
+/**
+ * Set the kernel memory allocation range associated to the given
+ * physical page.
+ *
+ * @param ppage_paddr Physical address of the page (MUST be page-aligned)
+ *
+ * @return error if page is invalid
+ */
+sos_ret_t sos_physmem_set_kmem_range(sos_paddr_t ppage_paddr, struct sos_kmem_range *range);
 
 
 #endif /* _SOS_PHYSMEM_H_ */

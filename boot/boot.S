@@ -26,7 +26,7 @@
 #endif
 
 /* The size of our stack (16KB).  */
-#define STACK_SIZE			0x4000
+#define MULTIBOOT_STACK_SIZE		(4 * (4*1024) )/*0x4000*/
 
 //#define __ELF__
 /* The flags for the Multiboot header.  */
@@ -110,7 +110,7 @@ _start:
 multiboot_entry:
 
 	/* Initialize the stack pointer.  */
-	movl	$(stack + STACK_SIZE), %esp
+	movl	$(stack + MULTIBOOT_STACK_SIZE), %esp
 
 	/* Reset EFLAGS.  */
 	pushl	$0
@@ -134,5 +134,24 @@ loop:	hlt
 halt_message:
 	.asciz	"Halted."
 
+/* Here is the stack */
+
 	/* Our stack area.  */
-	.comm	stack, STACK_SIZE
+	/*.comm	stack, MULTIBOOT_STACK_SIZE*/
+
+.section ".init_stack", "aw", @nobits
+.size	stack, MULTIBOOT_STACK_SIZE
+stack:
+	.space MULTIBOOT_STACK_SIZE
+
+/* Some data characterizing the stack addresses */
+.data
+	.globl bootstrap_stack_bottom
+bootstrap_stack_bottom:	.long stack
+
+	.globl bootstrap_stack_size
+bootstrap_stack_size:	.long MULTIBOOT_STACK_SIZE
+
+
+
+

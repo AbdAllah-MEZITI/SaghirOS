@@ -29,9 +29,12 @@
 #include <hwcore/paging.h>
 #include "list.h"
 #include "physmem.h"
+#include <os/kmem_vmm.h>
+#include <os/kmalloc.h>
 #include "os/assert.h"
 
 extern struct multiboot_tag_basic_meminfo* mbi_tag_mem;
+extern sos_vaddr_t bootstrap_stack_bottom, bootstrap_stack_size;
 
 /* Helper function to display each bits of a 32bits integer on the
    screen as dark or light carrets */
@@ -68,138 +71,271 @@ static void clk_it(int intid)
 }
 
 
-/* Page fault exception handler */
-static void pgflt_ex(int exid)
+
+/* == */
+/*    */
+/* == */
+
+struct digit
 {
-  printf("Got page fault\n");
-  os_printf(10, 30,
-			  SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
-			  "Got EXPECTED (?) Page fault ! But where ???");
-  for (;;) ;
+  struct digit *prev, *next;
+  char value;
+};
+
+/* Representation of a big (positive) integer: Most Significant Digit
+   (MSD) is the HEAD of the list. Least Significant Digit (LSD) is the
+   TAIL of the list */
+typedef struct digit * big_number_t;
+
+
+/* Add a new digit after the LSD */
+void bn_push_lsd(big_number_t * bn, char value)
+{
+  struct digit *d;
+  d = (struct digit*) sos_kmalloc(sizeof(struct digit), 0);
+  SOS_ASSERT_FATAL(d != NULL);
+  d->value = value;
+  list_add_tail(*bn, d);
 }
 
 
-static void test_paging(sos_vaddr_t sos_kernel_core_top_vaddr)
+/* Add a new digit before the MSD */
+void bn_push_msd(big_number_t * bn, char value)
 {
-  /* The (linear) address of the page holding the code we are currently executing */
-  sos_vaddr_t vpage_code = SOS_PAGE_ALIGN_INF(test_paging);
-
-  /* The new physical page that will hold the code */
-  sos_paddr_t ppage_new;
-
-  /* Where this page will be mapped temporarily in order to copy the
-     code into it: right after the kernel code/data */
-  sos_vaddr_t vpage_tmp = sos_kernel_core_top_vaddr;
-
-  unsigned i;
-
-  /* Bind the page fault exception to one of our routines */
-  sos_exception_set_routine(SOS_EXCEPT_PAGE_FAULT,
-			    pgflt_ex);
-
-  /*
-   * Test 1: move the page where we execute the code elsewhere in
-   * physical memory
-   */
-  os_printf(4, 0,
-			  SOS_X86_VIDEO_FG_LTGREEN | SOS_X86_VIDEO_BG_BLUE,
-			  "Moving current code elsewhere in physical memory:");
+  struct digit *d;
+  d = (struct digit*) sos_kmalloc(sizeof(struct digit), 0);
+  SOS_ASSERT_FATAL(d != NULL);
+  d->value = value;
+  list_add_head(*bn, d);
+}
 
 
-  /* Allocate a new physical page */
-  ppage_new = sos_physmem_ref_physpage_new(FALSE);
-  if (! ppage_new)
+/* Construct a big integer from a (machine) integer */
+big_number_t bn_new(unsigned long int i)
+{
+  big_number_t retval;
+
+  list_init(retval);
+  do
     {
-      /* STOP ! No memory left */
-      os_printf(20, 0,
-				 SOS_X86_VIDEO_FG_LTRED
-				   | SOS_X86_VIDEO_BG_BLUE,
-				 "test_paging : Cannot allocate page");
-      return;
+      bn_push_msd(&retval, i%10);
+      i /= 10;
+    }
+  while (i != 0);
+
+  return retval;
+}
+
+
+/* Create a new big integer from another big integer */
+big_number_t bn_copy(const big_number_t bn)
+{
+  big_number_t retval;
+  int nb_elts;
+  struct digit *d;
+
+  list_init(retval);
+  list_foreach(bn, d, nb_elts)
+    {
+      bn_push_lsd(&retval, d->value);
     }
 
-  os_printf(5, 0,
-			  SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
-			  "Hello from the address 0x%x in physical memory",
-			  sos_paging_get_paddr(vpage_code));
+  return retval;
+}
 
-  os_printf(6, 0,
-			  SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
-			  "Transfer vpage 0x%x: ppage 0x%x -> 0x%x (tmp vpage 0x%x)",
-	                  vpage_code,
-			  sos_paging_get_paddr(vpage_code),
-			  ppage_new,
-			  (unsigned)vpage_tmp);
 
-  /* Map the page somewhere (right after the kernel mapping) in order
-     to copy the code we are currently executing */
-  sos_paging_map(ppage_new, vpage_tmp,
-		 FALSE,
-		 SOS_VM_MAP_ATOMIC
-		 | SOS_VM_MAP_PROT_READ
-		 | SOS_VM_MAP_PROT_WRITE);
+/* Free the memory used by a big integer */
+void bn_del(big_number_t * bn)
+{
+  struct digit *d;
 
-  /* Ok, the new page is referenced by the mapping, we can release our reference to it */
-  sos_physmem_unref_physpage(ppage_new);
+  list_collapse(*bn, d)
+    {
+      sos_kfree((sos_vaddr_t)d);
+    }
+}
 
-  /* Copy the contents of the current page of code to this new page mapping */
-  memcpy((void*)vpage_tmp,
-	 (void*)vpage_code,
-	 SOS_PAGE_SIZE);
 
-  /* Transfer the mapping of the current page of code to this new page */
-  sos_paging_map(ppage_new, vpage_code,
-		 FALSE,
-		 SOS_VM_MAP_ATOMIC
-		 | SOS_VM_MAP_PROT_READ
-		 | SOS_VM_MAP_PROT_WRITE);
+/* Shift left a big integer: bn := bn*10^shift */
+void bn_shift(big_number_t *bn, int shift)
+{
+  for ( ; shift > 0 ; shift --)
+    {
+      bn_push_lsd(bn, 0);
+    }
+}
+
+
+/* Dump the big integer in bochs */
+void bn_print_bochs(const big_number_t bn)
+{
+  int nb_elts;
+  const struct digit *d;
+
+  if (list_is_empty(bn))
+    printf("0");
+  else
+    list_foreach(bn, d, nb_elts)
+  printf("%d", d->value);
+}
+
+/* Dump the big integer on the console */
+void bn_print_console(unsigned char row, unsigned char col,
+		      unsigned char attribute,
+		      const big_number_t bn,
+		      int nb_decimals)
+{
+  if (list_is_empty(bn))
+    os_printf(row, col, attribute, "0");
+  else
+    {
+      int nb_elts;
+      const struct digit *d;
+      unsigned char x = col;
+
+      list_foreach(bn, d, nb_elts)
+	{
+	  if (nb_elts == 0)
+	    {
+	      os_printf(row, x, attribute, "%d.", d->value);
+	      x += 2;
+	    }
+	  else if (nb_elts < nb_decimals)
+	    {
+	      os_printf(row, x, attribute, "%d", d->value);
+	      x ++;
+	    }
+	}
+
+      os_printf(row, x, attribute, " . 10^{%d}  ", nb_elts-1);
+    }
+}
+
+
+/* Result is the addition of 2 big integers */
+big_number_t bn_add (const big_number_t bn1, const big_number_t bn2)
+{
+  big_number_t retval;
+  const struct digit *d1, *d2;
+  sos_bool_t  bn1_end = FALSE, bn2_end = FALSE;
+  char carry = 0;
+
+  list_init(retval);
+  d1 = list_get_tail(bn1);
+  bn1_end = list_is_empty(bn1);
+  d2 = list_get_tail(bn2);
+  bn2_end = list_is_empty(bn2);
+  do
+    {
+      if (! bn1_end)
+	carry += d1->value;
+      if (! bn2_end)
+	carry += d2->value;
+
+      bn_push_msd(&retval, carry % 10);
+      carry  /= 10;
+
+      if (! bn1_end)
+	d1 = d1->prev;
+      if (! bn2_end)
+	d2 = d2->prev;
+      if (d1 == list_get_tail(bn1))
+	bn1_end = TRUE;
+      if (d2 == list_get_tail(bn2))
+	bn2_end = TRUE;
+    }
+  while (!bn1_end || !bn2_end);
+
+  if (carry > 0)
+    {
+      bn_push_msd(&retval, carry);
+    }
+
+  return retval;
+}
+
+
+/* Result is the multiplication of a big integer by a single digit */
+big_number_t bn_muli (const big_number_t bn, char digit)
+{
+  big_number_t retval;
+  int nb_elts;
+  char   carry = 0;
+  const struct digit *d;
+
+  list_init(retval);
+  list_foreach_backward(bn, d, nb_elts)
+    {
+      carry += d->value * digit;
+      bn_push_msd(&retval, carry % 10);
+      carry /= 10;
+    }
+
+  if (carry > 0)
+    {
+      bn_push_msd(&retval, carry);
+    }
+
+  return retval;
+}
+
+
+/* Result is the multiplication of 2 big integers */
+big_number_t bn_mult(const big_number_t bn1, const big_number_t bn2)
+{
+  int shift = 0;
+  big_number_t retval;
+  int nb_elts;
+  struct digit *d;
+
+  list_init(retval);
+  list_foreach_backward(bn2, d, nb_elts)
+    {
+      big_number_t retmult = bn_muli(bn1, d->value);
+      big_number_t old_retval = retval;
+      bn_shift(& retmult, shift);
+      retval = bn_add(old_retval, retmult);
+      bn_del(& retmult);
+      bn_del(& old_retval);
+      shift ++;
+    }
+
+  return retval;
+}
+
+
+/* Result is the factorial of an integer */
+big_number_t bn_fact(unsigned long int v)
+{
+  unsigned long int i;
+  big_number_t retval = bn_new(1);
+  for (i = 1 ; i <= v ; i++)
+    {
+      big_number_t I   = bn_new(i);
+      big_number_t tmp = bn_mult(retval, I);
+      os_printf(4, 0,
+			      SOS_X86_VIDEO_BG_BLUE | SOS_X86_VIDEO_FG_LTGREEN,
+			      "%d! = ", (int)i);
+      bn_print_console(4, 8, SOS_X86_VIDEO_BG_BLUE | SOS_X86_VIDEO_FG_WHITE,
+		       tmp, 55);
+      bn_del(& I);
+      bn_del(& retval);
+      retval = tmp;
+    }
+
+  return retval;
+}
+
+
+void bn_test()
+{
+  big_number_t bn = bn_fact(1000);
+  printf("1000! = ");
+  bn_print_bochs(bn);
+  printf("\n");
   
-  /* Ok, here we are: we have changed the physcal page that holds the
-     code we are executing ;). However, this new page is mapped at 2
-     virtual addresses:
-     - vpage_tmp
-     - vpage_code
-     We can safely unmap it from sos_kernel_core_top_vaddr, while
-     still keeping the vpage_code mapping */
-  sos_paging_unmap(vpage_tmp);
-
-  os_printf(7, 0,
-			  SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
-			  "Hello from the address 0x%x in physical memory",
-			  sos_paging_get_paddr(vpage_code));
-
-  os_printf(9, 0,
-			  SOS_X86_VIDEO_FG_LTGREEN | SOS_X86_VIDEO_BG_BLUE,
-			  "Provoking a page fault:");
-
-  /*
-   * Test 2: make sure the #PF handler works
-   */
-
-  /* Scan part of the kernel up to a page fault. This page fault
-     should occur on the first page unmapped after the kernel area,
-     which is exactly the page we temporarily mapped/unmapped
-     (vpage_tmp) above to move the kernel code we are executing */
-  for (i = vpage_code ; /* none */ ; i += SOS_PAGE_SIZE)
-    {
-      unsigned *pint = (unsigned *)SOS_PAGE_ALIGN_INF(i);
-      printf("Test vaddr 0x%x : val=", (unsigned)pint);
-      os_printf(10, 0,
-			      SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
-			      "Test vaddr 0x%x : val=      ",
-			      (unsigned)pint);
-      printf("0x%x\n", *pint);
-      os_printf(10, 30,
-			      SOS_X86_VIDEO_FG_YELLOW | SOS_X86_VIDEO_BG_BLUE,
-			      "0x%x          ", *pint);
-    }
-
-  /* BAD ! Did not get the page fault... */
-  os_printf(20, 0,
-			  SOS_X86_VIDEO_FG_LTRED | SOS_X86_VIDEO_BG_BLUE,
-			  "We should have had a #PF at vaddr 0x%x !",
-			  vpage_tmp);
 }
+
 
 
 
@@ -289,7 +425,21 @@ void cmain (unsigned long magic, unsigned long addr)
 			"Paged-memory mode is activated");
 	
 	cls ();
-	test_paging(sos_kernel_core_top_paddr);
+
+ 	/*
+	 * Setup kernel virtual memory allocator
+	 */ 
+	if (sos_kmem_vmm_setup(sos_kernel_core_base_paddr,
+ 	                          sos_kernel_core_top_paddr,
+ 	                          bootstrap_stack_bottom,
+ 	                          bootstrap_stack_bottom + bootstrap_stack_size))
+		printf("Could not setup the Kernel virtual space allocator\n");
+	 
+	if (sos_kmalloc_setup())
+		printf("Could not setup the Kmalloc subsystem\n");
+ 	 
+	/* Run some kmalloc tests */
+	bn_test();
 
 	/* An operatig system never ends */
 	for (;;)

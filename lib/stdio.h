@@ -16,3 +16,5 @@ void itoa (char *buf, int base, int d);
 void putchar (int c);
 void printf (const char *format, ...);
 
+void os_putchar (int yp, int xp, unsigned char attribute, int c);
+void os_printf (int yp, int xp, unsigned char attribute, const char *format, ...);
