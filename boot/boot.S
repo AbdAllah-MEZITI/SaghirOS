@@ -136,9 +136,6 @@ halt_message:
 
 /* Here is the stack */
 
-	/* Our stack area.  */
-	/*.comm	stack, MULTIBOOT_STACK_SIZE*/
-
 .section ".init_stack", "aw", @nobits
 .size	stack, MULTIBOOT_STACK_SIZE
 stack:

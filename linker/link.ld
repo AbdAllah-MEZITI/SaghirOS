@@ -90,6 +90,11 @@ SECTIONS
 		/* provide an address */
 		.bss ADDR(.rodata) + SIZEOF(.rodata): /* : */
 		{	*(.bss)
+			*(COMMON)
+			
+			/* We put the stack of the bootstrap thread on a page boundary, because it can be un-allocater later */
+			. = ALIGN(4096);
+			*(.init_stack)
 
 			PROVIDE(ebss = .);
 			PROVIDE(_ebss = .);
