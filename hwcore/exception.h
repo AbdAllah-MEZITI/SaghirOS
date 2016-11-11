@@ -27,6 +27,7 @@
 
 #ifndef ASM_SOURCE
 #  include <os/errno.h>
+#  include "cpu_context.h"
 #endif
 
 /**
@@ -69,12 +70,15 @@
 
 #ifndef ASM_SOURCE
 
-typedef void (*sos_exception_handler_t)(int exception_number);
+typedef void (*sos_exception_handler_t)(int exception_number,
+					const struct sos_cpu_state *cpu_kstate);
 
-sos_ret_t sos_exceptions_setup(void);
+sos_ret_t sos_exception_subsystem_setup(void);
 sos_ret_t sos_exception_set_routine(int exception_number,
 				    sos_exception_handler_t routine);
 sos_exception_handler_t sos_exception_get_routine(int exception_number);
+
+const char * sos_exception_get_name(int exception_number);
 #endif /* ! ASM_SOURCE */
 
 #endif /* _SOS_HWEXCEPT_H_ */

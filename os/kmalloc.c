@@ -50,7 +50,7 @@ static struct {
   };
 
 
-sos_ret_t sos_kmalloc_setup()
+sos_ret_t sos_kmalloc_subsystem_setup()
 {
   int i;
   for (i = 0 ; kmalloc_cache[i].object_size != 0 ; i ++)

@@ -57,7 +57,7 @@
 
 /** Initialization routine: all the IDT entries (or "IDTE") are marked
     "not present". */
-sos_ret_t sos_idt_setup(void);
+sos_ret_t sos_idt_subsystem_setup(void);
 
 /**
  * Enable the IDT entry if handler_address != NULL, with the given

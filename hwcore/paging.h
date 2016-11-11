@@ -37,6 +37,23 @@
 #include <os/types.h>
 #include <os/errno.h>
 
+
+/**
+ * Basic SOS virtual memory organization
+ */
+/** Frontier between kernel and user space virtual addresses */
+#define SOS_PAGING_BASE_USER_ADDRESS (0x40000000) /* 1GB */
+#define SOS_PAGING_TOP_USER_ADDRESS (0xFFFFFFFF) /* 4GB */
+
+/** Length of the space reserved for the mirroring in the kernel
+    virtual space */
+#define SOS_PAGING_MIRROR_SIZE  (1 << 22)  /* 1 PD = 1024 Page Tables = 4MB */
+
+/** Virtual address where the mirroring takes place */
+#define SOS_PAGING_MIRROR_VADDR \
+   (SOS_PAGING_BASE_USER_ADDRESS - SOS_PAGING_MIRROR_SIZE)
+
+
 /**
  * sos_paging_map flags
  */
@@ -45,15 +62,11 @@
 #define SOS_VM_MAP_PROT_READ  (1<<0)
 #define SOS_VM_MAP_PROT_WRITE (1<<1)
 /* EXEC not supported */
+
 /** Mapping a page may involve an physical page allocation (for a new
     PT), hence may potentially block */
 #define SOS_VM_MAP_ATOMIC     (1<<31)
 
-/** Virtual address where the mirroring takes place */
-#define SOS_PAGING_MIRROR_VADDR 0x3fc00000 /* 1GB - 4MB */
-/** Length of the space reserved for the mirroring in the kernel
-    virtual space */
-#define SOS_PAGING_MIRROR_SIZE  (1 << 22)  /* 1 PD = 1024 Page Tables = 4MB */
 
 /**
  * Setup initial page directory structure where the kernel is
@@ -62,7 +75,7 @@
  * text to be printed to the console. Finally, this routine installs
  * the whole configuration into the MMU.
  */
-sos_ret_t sos_paging_setup(sos_paddr_t identity_mapping_base,
+sos_ret_t sos_paging_subsystem_setup(sos_paddr_t identity_mapping_base,
 			   sos_paddr_t identity_mapping_top);
 
 /**
@@ -89,7 +102,7 @@ sos_ret_t sos_paging_setup(sos_paddr_t identity_mapping_base,
 sos_ret_t sos_paging_map(sos_paddr_t ppage_paddr,
 			 sos_vaddr_t vpage_vaddr,
 			 sos_bool_t is_user_page,
-			 int flags);
+			 sos_ui32_t flags);
 
 /**
  * Undo the mapping from vaddr to the underlying physical page (if any)

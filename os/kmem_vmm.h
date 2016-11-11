@@ -44,10 +44,11 @@ struct sos_kmem_range;
  * as "used", and the 0..SOS_KMEM_VMM_BASE virtual addresses as marked
  * as "used" too (to detect incorrect pointer dereferences).
  */
-sos_ret_t sos_kmem_vmm_setup(sos_vaddr_t kernel_core_base,
-			     sos_vaddr_t kernel_core_top,
-			     sos_vaddr_t bootstrap_stack_bottom_addr,
-			     sos_vaddr_t bootstrap_stack_top_addr);
+sos_ret_t
+sos_kmem_vmm_subsystem_setup(sos_vaddr_t kernel_core_base_vaddr,
+			     sos_vaddr_t kernel_core_top_vaddr,
+			     sos_vaddr_t bootstrap_stack_bottom_vaddr,
+			     sos_vaddr_t bootstrap_stack_top_vaddr);
 
 
 /*

@@ -203,7 +203,8 @@ create_range(sos_bool_t  is_free,
 }
 
 
-sos_ret_t sos_kmem_vmm_setup(sos_vaddr_t kernel_core_base,
+sos_ret_t
+sos_kmem_vmm_subsystem_setup(sos_vaddr_t kernel_core_base,
 			     sos_vaddr_t kernel_core_top,
 			     sos_vaddr_t bootstrap_stack_bottom_vaddr,
 			     sos_vaddr_t bootstrap_stack_top_vaddr)
@@ -221,15 +222,15 @@ sos_ret_t sos_kmem_vmm_setup(sos_vaddr_t kernel_core_base,
   list_init(kmem_used_range_list);
 
   kmem_range_cache
-    = sos_kmem_cache_setup_prepare(kernel_core_base,
-				   kernel_core_top,
-				   sizeof(struct sos_kmem_range),
-				   & first_struct_slab_of_caches,
-				   & first_slab_of_caches_base,
-				   & first_slab_of_caches_nb_pages,
-				   & first_struct_slab_of_ranges,
-				   & first_slab_of_ranges_base,
-				   & first_slab_of_ranges_nb_pages);
+    = sos_kmem_cache_subsystem_setup_prepare(kernel_core_base,
+					     kernel_core_top,
+					     sizeof(struct sos_kmem_range),
+					     & first_struct_slab_of_caches,
+					     & first_slab_of_caches_base,
+					     & first_slab_of_caches_nb_pages,
+					     & first_struct_slab_of_ranges,
+					     & first_slab_of_ranges_base,
+					     & first_slab_of_ranges_nb_pages);
   SOS_ASSERT_FATAL(kmem_range_cache != NULL);
 
   /* Mark virtual addresses 16kB - Video as FREE */
@@ -306,10 +307,10 @@ sos_ret_t sos_kmem_vmm_setup(sos_vaddr_t kernel_core_base,
   /* Update the cache subsystem so that the artificially-created
      caches of caches and ranges really behave like *normal* caches (ie
      those allocated by the normal slab API) */
-  sos_kmem_cache_setup_commit(first_struct_slab_of_caches,
-			      first_range_of_caches,
-			      first_struct_slab_of_ranges,
-			      first_range_of_ranges);
+  sos_kmem_cache_subsystem_setup_commit(first_struct_slab_of_caches,
+					first_range_of_caches,
+					first_struct_slab_of_ranges,
+					first_range_of_ranges);
 
   return SOS_OK;
 }
@@ -417,11 +418,7 @@ struct sos_kmem_range *sos_kmem_vmm_new_range(sos_count_t nb_pages,
 	  sos_physmem_set_kmem_range(ppage_paddr, new_range);
 	}
     }
-
-  /* Otherwise we need a correct page fault handler to support
-     deferred mapping (aka demand paging) of ranges */
-  else
-    SOS_ASSERT_FATAL(! "No demand paging yet");
+  /* ... Otherwise: Demand Paging will do the job */
 
   if (range_start)
     *range_start = new_range->base_vaddr;

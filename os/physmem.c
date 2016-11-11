@@ -59,9 +59,9 @@ static sos_paddr_t physmem_base, physmem_top;
 /** We store the number of pages used/free */
 static sos_count_t physmem_total_pages, physmem_used_pages;
 
-sos_ret_t sos_physmem_setup(sos_size_t ram_size,
-			    /* out */sos_paddr_t *kernel_core_base,
-			    /* out */sos_paddr_t *kernel_core_top)
+sos_ret_t sos_physmem_subsystem_setup(sos_size_t ram_size,
+				      /* out */sos_paddr_t *kernel_core_base,
+				      /* out */sos_paddr_t *kernel_core_top)
 {
   /* The iterator over the page descriptors */
   struct physical_page_descr *ppage_descr;

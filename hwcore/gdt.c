@@ -38,7 +38,7 @@ struct x86_segment_descriptor
   sos_ui8_t  segment_type:4;        /* Section 3.4.3.1 (code/data)
 				       and 3.5 (system) of Intel x86 vol 3 */
   sos_ui8_t  descriptor_type:1;     /* 0=system, 1=Code/Data */
-  sos_ui8_t  dpl:2;
+  sos_ui8_t  dpl:2;		    /* Descriptor privilege level */
   sos_ui8_t  present:1;
 
   sos_ui8_t  limit_19_16:4;         /* Segment limit, bits 19..16 */
@@ -116,7 +116,7 @@ static struct x86_segment_descriptor gdt[] = {
   [SOS_SEG_KDATA] = BUILD_GDTE(0, 0),
 };
 
-sos_ret_t sos_gdt_setup(void)
+sos_ret_t sos_gdt_subsystem_setup(void)
 {
   struct x86_gdt_register gdtr;
 

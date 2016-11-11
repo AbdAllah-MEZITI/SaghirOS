@@ -24,7 +24,7 @@
 #define PIC_SLAVE  0xa0
 
 /** Setup the 8259 PIC */
-sos_ret_t sos_i8259_setup(void)
+sos_ret_t sos_i8259_subsystem_setup(void)
 {
   /* Send ICW1: 8086 mode + NOT Single ctrl + call address
      interval=8 */

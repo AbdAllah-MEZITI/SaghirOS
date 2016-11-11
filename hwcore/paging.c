@@ -182,8 +182,8 @@ static sos_ret_t paging_setup_map_helper(struct x86_pde * pd,
 }
 
 
-sos_ret_t sos_paging_setup(sos_paddr_t identity_mapping_base,
-			   sos_paddr_t identity_mapping_top)
+sos_ret_t sos_paging_subsystem_setup(sos_paddr_t identity_mapping_base,
+				     sos_paddr_t identity_mapping_top)
 {
   /* The PDBR we will setup below */
   struct x86_pdbr cr3;  
@@ -262,7 +262,7 @@ sos_ret_t sos_paging_setup(sos_paddr_t identity_mapping_base,
 sos_ret_t sos_paging_map(sos_paddr_t ppage_paddr,
 			 sos_vaddr_t vpage_vaddr,
 			 sos_bool_t is_user_page,
-			 int flags)
+			 sos_ui32_t flags)
 {
   /* Get the page directory entry and table entry index for this
      address */
@@ -297,7 +297,7 @@ sos_ret_t sos_paging_map(sos_paddr_t ppage_paddr,
       pd[index_in_pd].present  = TRUE;
       pd[index_in_pd].write    = 1; /* Ignored in supervisor mode, see
 				       Intel vol 3 section 4.12 */
-      pd[index_in_pd].user     |= (is_user_page)?1:0;
+      pd[index_in_pd].user     = (is_user_page)?1:0;
       pd[index_in_pd].pt_paddr = ((sos_paddr_t)pt_ppage) >> 12;
       
       /*
@@ -380,11 +380,20 @@ sos_ret_t sos_paging_unmap(sos_vaddr_t vpage_vaddr)
   /* Reclaim this entry in the PT, which may free the PT */
   pt_unref_retval = sos_physmem_unref_physpage(pd[index_in_pd].pt_paddr << 12);
   SOS_ASSERT_FATAL(pt_unref_retval >= 0);
-  if (pt_unref_retval > 0)
+  if (pt_unref_retval == TRUE)
     /* If the PT is now completely unused... */
     {
-      /* Release the PDE */
-      memset(pd + index_in_pd, 0x0, sizeof(struct x86_pde));
+      union { struct x86_pde pde; sos_ui32_t ui32; } u;
+
+      /*
+       * Reset the PDE
+       */
+
+      /* Mark the PDE as unavailable */
+      u.ui32 = 0;
+
+      /* Update the PD */
+      pd[index_in_pd] = u.pde;
       
       /* Update the TLB */
       invlpg(pt);

@@ -26,6 +26,7 @@
  */
 
 #include <os/errno.h>
+#include "cpu_context.h"
 
 #define sos_save_flags(flags) \
   asm volatile("pushfl ; popl %0":"=g"(flags)::"memory")
@@ -55,6 +56,7 @@
 #define SOS_IRQ_HARDDISK      14
 #define SOS_IRQ_RESERVED_5    15
 
+/** Definition of an hardware IRQ handler */
 typedef void (*sos_irq_handler_t)(int irq_level);
 
 /** Setup the PIC */
@@ -70,5 +72,19 @@ sos_ret_t sos_irq_set_routine(int irq_level,
 			      sos_irq_handler_t routine);
 
 sos_irq_handler_t sos_irq_get_routine(int irq_level);
+
+
+/**
+ * Tell how many nested IRQ handler have been fired
+ */
+sos_ui32_t sos_irq_get_nested_level();
+
+
+/**
+ * Return TRUE when we are currently executing in interrupt context
+ */
+#define sos_servicing_irq() \
+  (sos_irq_get_nested_level() > 0)
+
 
 #endif /* _SOS_HWINTR_H_ */

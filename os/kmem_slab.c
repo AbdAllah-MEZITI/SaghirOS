@@ -429,16 +429,16 @@ create_cache_of_ranges(sos_vaddr_t vaddr_first_slab_of_ranges,
 
 
 struct sos_kslab_cache *
-sos_kmem_cache_setup_prepare(sos_vaddr_t kernel_core_base,
-			     sos_vaddr_t kernel_core_top,
-			     sos_size_t  sizeof_struct_range,
-			     /* results */
-			     struct sos_kslab **first_struct_slab_of_caches,
-			     sos_vaddr_t *first_slab_of_caches_base,
-			     sos_count_t *first_slab_of_caches_nb_pages,
-			     struct sos_kslab **first_struct_slab_of_ranges,
-			     sos_vaddr_t *first_slab_of_ranges_base,
-			     sos_count_t *first_slab_of_ranges_nb_pages)
+sos_kmem_cache_subsystem_setup_prepare(sos_vaddr_t kernel_core_base,
+				       sos_vaddr_t kernel_core_top,
+				       sos_size_t  sizeof_struct_range,
+				       /* results */
+				       struct sos_kslab **first_struct_slab_of_caches,
+				       sos_vaddr_t *first_slab_of_caches_base,
+				       sos_count_t *first_slab_of_caches_nb_pages,
+				       struct sos_kslab **first_struct_slab_of_ranges,
+				       sos_vaddr_t *first_slab_of_ranges_base,
+				       sos_count_t *first_slab_of_ranges_nb_pages)
 {
   int i;
   sos_ret_t   retval;
@@ -545,10 +545,10 @@ sos_kmem_cache_setup_prepare(sos_vaddr_t kernel_core_base,
 
 
 sos_ret_t
-sos_kmem_cache_setup_commit(struct sos_kslab *first_struct_slab_of_caches,
-			    struct sos_kmem_range *first_range_of_caches,
-			    struct sos_kslab *first_struct_slab_of_ranges,
-			    struct sos_kmem_range *first_range_of_ranges)
+sos_kmem_cache_subsystem_setup_commit(struct sos_kslab *first_struct_slab_of_caches,
+				      struct sos_kmem_range *first_range_of_caches,
+				      struct sos_kslab *first_struct_slab_of_ranges,
+				      struct sos_kmem_range *first_range_of_ranges)
 {
   first_struct_slab_of_caches->range = first_range_of_caches;
   first_struct_slab_of_ranges->range = first_range_of_ranges;

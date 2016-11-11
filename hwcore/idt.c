@@ -70,7 +70,7 @@ struct x86_idt_register
 
 static struct x86_idt_entry    idt[SOS_IDTE_NUM];
 
-sos_ret_t sos_idt_setup()
+sos_ret_t sos_idt_subsystem_setup()
 {
   struct x86_idt_register idtr;
   int i;

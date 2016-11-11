@@ -32,7 +32,7 @@
  */
 
 /** Setup PIC and Disable all IRQ lines */
-sos_ret_t sos_i8259_setup(void);
+sos_ret_t sos_i8259_subsystem_setup(void);
 
 sos_ret_t sos_i8259_enable_irq_line(int numirq);
 

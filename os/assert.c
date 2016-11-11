@@ -15,31 +15,33 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
    USA. 
 */
-#ifndef _SOS_ASSERT_H_
-#define _SOS_ASSERT_H_
 
+#include <lib/klibc.h>
+//#include <drivers/bochs.h>
+#include <lib/x86_videomem.h>
+
+#include "assert.h"
 
 void sos_display_fatal_error(const char *format, /* args */...)
-     __attribute__ ((format (printf, 1, 2), noreturn));
+{
+  char buff[256];
+  va_list ap;
+  
+  asm("cli\n"); /* disable interrupts -- x86 only */ \
 
+  va_start(ap, format);
+  vsnprintf(buff, sizeof(buff), format, ap);
+  va_end(ap);
 
-/**
- * If the expr is FALSE, print a message and halt the machine
- */
-#define SOS_ASSERT_FATAL(expr) \
-   ({ \
-     int __res=(int)(expr); \
-     if (! __res) \
-       sos_display_fatal_error("%s@%s:%d Assertion " # expr " failed", \
-			       __PRETTY_FUNCTION__, __FILE__, __LINE__); \
-   })
+  /* sos_bochs_putstring(buff); sos_bochs_putstring("\n");
 
+  sos_x86_videomem_putstring(23, 0,
+			     SOS_X86_VIDEO_BG_BLACK
+			     | SOS_X86_VIDEO_FG_LTRED , buff);*/
+  printf("%s\n",buff);
+  os_printf (23, 0, SOS_X86_VIDEO_BG_BLACK | SOS_X86_VIDEO_FG_LTRED, "%s", buff);
 
-#define SOS_FATAL_ERROR(fmt,args...) \
-   ({ \
-      sos_display_fatal_error("%s@%s:%d FATAL: " fmt, \
-			      __PRETTY_FUNCTION__, __FILE__, __LINE__, \
-                              ##args); \
-   })
-
-#endif /* _SOS_ASSERT_H_ */
+  /* Infinite loop: processor halted */
+  for ( ; ; )
+    asm("hlt\n");
+}

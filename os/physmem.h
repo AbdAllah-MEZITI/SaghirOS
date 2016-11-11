@@ -76,9 +76,9 @@
  * assumes identity mapping (ie virtual address == physical address)
  * will be stored here
  */
-sos_ret_t sos_physmem_setup(sos_size_t ram_size,
-			    /* out */sos_paddr_t *kernel_core_base,
-			    /* out */sos_paddr_t *kernel_core_top);
+sos_ret_t sos_physmem_subsystem_setup(sos_size_t ram_size,
+				      /* out */sos_paddr_t *kernel_core_base,
+				      /* out */sos_paddr_t *kernel_core_top);
 
 /**
  * Retrieve the total number of pages, and the number of free pages

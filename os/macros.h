@@ -27,6 +27,10 @@
   ({ unsigned int __bnd=(boundary); \
      (((((unsigned)(val))-1) & (~(__bnd - 1))) + __bnd); })
 
+/** Check whether val is aligned on a boundary (MUST be a power of 2) */
+#define SOS_IS_ALIGNED(val,boundary) \
+  ( 0 == (((unsigned)(val)) & ((boundary)-1)) )
+
 /**
  * @return TRUE if val is a power of 2.
  * @note val is evaluated multiple times

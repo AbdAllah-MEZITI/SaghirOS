@@ -32,7 +32,7 @@
 /**
  * Iniatilize the kmalloc subsystem, ie pre-allocate a series of caches.
  */
-sos_ret_t sos_kmalloc_setup(void);
+sos_ret_t sos_kmalloc_subsystem_setup(void);
 
 /*
  * sos_kmalloc flags

@@ -30,7 +30,6 @@
  * @see Intel x86 doc, vol 3 chapter 3.
  */
 
-#include <os/types.h>
 
 /*
  * Global segment selectors (GDT) for SOS/x86.
@@ -42,6 +41,7 @@
 #define SOS_SEG_KDATA 2 /* Kernel data segment */
 
 
+#ifndef ASM_SOURCE
 /**
  * Helper macro that builds a segment register's value
  */
@@ -49,6 +49,18 @@
   (  (((desc_privilege) & 0x3)  << 0) \
    | (((in_ldt)?1:0)            << 2) \
    | ((seg_index)               << 3) )
+#else
+/*
+ * Assembler-compliant version.
+ *
+ * Caution: In assembler code, "in_ldt" MUST be either 1 or 0, nothing
+ * else.
+ */
+#define SOS_BUILD_SEGMENT_REG_VALUE(desc_privilege,in_ldt,seg_index) \
+  (  (((desc_privilege) & 0x3)  << 0) \
+   | ((in_ldt & 1)              << 2) \
+   | ((seg_index)               << 3) )
+#endif
 
 
 /*

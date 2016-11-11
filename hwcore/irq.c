@@ -27,10 +27,13 @@ extern sos_vaddr_t sos_irq_wrapper_array[SOS_IRQ_NUM];
 /* arrays of IRQ handlers, shared with irq_wrappers.S */
 sos_irq_handler_t sos_irq_handler_array[SOS_IRQ_NUM] = { NULL, };
 
+/** Number of interrupt handlers that are currently executing */
+sos_ui32_t sos_irq_nested_level_counter;
 
-sos_ret_t sos_irq_setup(void)
+sos_ret_t sos_irq_subsystem_setup(void)
 {
-  return sos_i8259_setup();
+  sos_irq_nested_level_counter = 0;
+  return sos_i8259_subsystem_setup();
 }
 
 
@@ -88,4 +91,11 @@ sos_irq_handler_t sos_irq_get_routine(int irq_level)
   
   /* Expected to be atomic */
   return sos_irq_handler_array[irq_level];
+}
+
+
+sos_ui32_t sos_irq_get_nested_level()
+{
+  /* No need to disable interrupts here */
+  return sos_irq_nested_level_counter;
 }

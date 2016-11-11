@@ -22,13 +22,15 @@
 
 .text
 
-/* The address of the table of handlers (defined in irq.c) */
+/** The address of the table of handlers (defined in irq.c) */
 .extern sos_irq_handler_array
 
-/* The address of the table of wrappers (defined below, and shared
+/** The address of the table of wrappers (defined below, and shared
    with irq.c */
 .globl sos_irq_wrapper_array
 
+/** The variable holding the nested level of the IRQ handlers */
+.extern sos_irq_nested_level_counter
 
 /* These pre-handlers are for IRQ (Master PIC) */
 .irp id, 0,1,2,3,4,5,6,7
@@ -62,6 +64,11 @@
 		pushw %fs
 		pushw %gs
 
+		/*
+		 * Increment IRQ nested level
+		 */
+		incl sos_irq_nested_level_counter
+
 		/* Send EOI to PIC. See Intel 8259 datasheet
 		   available on Kos website */	
 		movb  $0x20, %al
@@ -74,6 +81,23 @@
 		leal  sos_irq_handler_array,%edi
 		call  *\id*4(%edi)
 		addl  $4, %esp
+
+		/*
+		 * Decrement IRQ nested level
+		 */
+		cli  /* Just in case we messed up everything in the handler */
+		subl $1, sos_irq_nested_level_counter
+
+		/* sos_irq_nested_level_counter went below 0 ?! */
+		jnc 2f
+	
+	1:      /* Yes:	Print fatal error message */
+		pushl $msg_nested_level_overflow
+		call sos_display_fatal_error
+		addl $4, %esp ; jmp 1b
+		/* Never returns */
+
+	2:	/* No:	 all right ! */
 
 		/* Restore the context */
 		popw  %gs
@@ -129,6 +153,11 @@
 		pushw %fs
 		pushw %gs
 
+		/*
+		 * Increment IRQ nested level
+		 */
+		incl sos_irq_nested_level_counter
+
 		/* Send EOI to PIC. See Intel 8259 datasheet
 		   available on Kos website */	
 		movb  $0x20, %al
@@ -142,6 +171,23 @@
 		leal  sos_irq_handler_array,%edi
 		call  *\id*4(%edi)
 		addl  $4, %esp
+
+		/*
+		 * Decrement IRQ nested level
+		 */
+		cli  /* Just in case we messed up everything in the handler */
+		subl $1, sos_irq_nested_level_counter
+
+		/* sos_irq_nested_level_counter went below 0 ?! */
+		jnc 2f
+		
+	1:      /* Yes:	Print fatal error message */
+		pushl $msg_nested_level_overflow
+		call sos_display_fatal_error
+		addl $4, %esp ; jmp 1b
+		/* Never returns */
+
+	2:	/* No:	 all right ! */
 
 		/* Restore the context */
 		popw  %gs
@@ -164,8 +210,11 @@
 		iret
 	.endr
 
-/* Build the sos_irq_wrapper_array, shared with irq.c */
 .section ".rodata"
+msg_nested_level_overflow:
+	.string "irq_wrappers.S: IRQ Nested level overflow ! System halted."
+
+/* Build the sos_irq_wrapper_array, shared with irq.c */
 .p2align 5, 0x0
 sos_irq_wrapper_array:
 	.irp id, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15

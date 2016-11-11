@@ -30,12 +30,13 @@
  * @see Intel x86 doc vol 3, chapter 3
  */
 
+#include <os/types.h>
 #include <os/errno.h>
 
 /**
  * Configure the virtual space as a direct mapping to the linear
  * address space (ie "flat" virtual space).
  */
-sos_ret_t sos_gdt_setup(void);
+sos_ret_t sos_gdt_subsystem_setup(void);
 
 #endif /* _SOS_GDT_H_ */

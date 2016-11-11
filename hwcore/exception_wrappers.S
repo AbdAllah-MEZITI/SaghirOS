@@ -86,12 +86,16 @@
                 pushw %fs
                 pushw %gs
  
-                /* Call the handler with exception number as
-                 * argument */
+		/*
+		 * Call the handler with the exception number and the
+		 * address of the stored CPU context as arguments
+		 */
+                pushl %esp
                 pushl $\id
                 leal  sos_exception_handler_array,%edi
                 call  *\id*4(%edi)
-                addl  $4, %esp
+                /* Unallocate the arguments passed to the handler */
+                addl  $8, %esp
 
                 /* Restore the context */
                 popw  %gs
@@ -148,12 +152,16 @@
                 pushw %fs
                 pushw %gs
 
-                /* Call the handler with exception number as
-                 * argument */
+		/*
+		 * Call the handler with the exception number and the
+		 * address of the stored CPU context as arguments
+		 */
+                pushl %esp
                 pushl $\id
                 leal  sos_exception_handler_array,%edi
                 call  *\id*4(%edi)
-                addl  $4, %esp
+                /* Unallocate the arguments passed to the handler */
+                addl  $8, %esp
 
                 /* Restore the context */
                 popw  %gs
@@ -178,20 +186,39 @@
 
 
 /* Double fault handler not supported. We must define it since we
-   define an entry for it in the sos_exception_wrapper_array. */
+   define an entry for it in the sos_exception_wrapper_array. It
+   simply uses an alternate stack to display a message and stop the
+   system. qemu won't handle it correctly (see comment in qemu's
+   sources). */
+#define ALTERNATE_DOUBLE_FAULT_STACK_SIZE 512
 .irp id, SOS_EXCEPT_DOUBLE_FAULT
 .p2align 2, 0x90
 sos_exception_wrapper_\id:
 .type sos_exception_wrapper_\id,@function
-1:	hlt
-	jmp 1b /* Machine halting */
+1:	cli /* Not necessary */
+	movl $double_fault_alternate_stack, %eax
+	addl $ALTERNATE_DOUBLE_FAULT_STACK_SIZE, %eax
+	movl %eax, %esp
+	pushl $msg_double_fault_not_supported
+	call sos_display_fatal_error ; jmp 1b /* Not necessary */
 .endr
 
-/* Build the sos_irq_wrapper_array, shared with interrupt.c */
 .section ".rodata"
+msg_double_fault_not_supported:
+	.string "exception_wrappers.S: Double fault detected ! NOT SUPPORTED yet. System Halted."
+
+/* Build the sos_irq_wrapper_array, shared with interrupt.c */
 .p2align 5, 0x0
 sos_exception_wrapper_array:
 	.irp id, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15, \
 	         16,17,18,19,20,21,22,23,24,25,26,27,29,30,31
 	  .long (sos_exception_wrapper_\id)
 	.endr
+
+/* Alternate stack for double fault handler */
+.bss
+.p2align 2, 0x0
+.size double_fault_alternate_stack, ALTERNATE_DOUBLE_FAULT_STACK_SIZE
+double_fault_alternate_stack:
+	.fill ALTERNATE_DOUBLE_FAULT_STACK_SIZE, 1, 0x0
+

@@ -41,6 +41,9 @@ typedef unsigned int       sos_count_t;
 typedef unsigned long int  sos_ui32_t; /* 32b unsigned */
 typedef unsigned short int sos_ui16_t; /* 16b unsigned */
 typedef unsigned char      sos_ui8_t;  /* 8b unsigned */
+typedef signed long int    sos_si32_t; /* 32b signed */
+typedef signed short int   sos_si16_t; /* 16b signed */
+typedef signed char        sos_si8_t;  /* 8b signed */
 
 typedef enum { FALSE=0, TRUE } sos_bool_t;
 
