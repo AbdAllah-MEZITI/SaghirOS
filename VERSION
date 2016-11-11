@@ -1,5 +1,6 @@
 SOS -- SaghirOS
 Copyright (C) 2016 AbdAllah MEZITI
 
-Version "Article 5" -- Kernel space virtual memory allocator (Slab system)
+Version "Article 6 (1st part)" -- Low-level kernel thread management
+
 

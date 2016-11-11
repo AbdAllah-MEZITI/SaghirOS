@@ -81,4 +81,19 @@ int vsnprintf(char *, sos_size_t, const char *, va_list);
 int snprintf(char *, sos_size_t, const char *, /*args*/ ...)
   __attribute__ ((format (printf, 3, 4)));
 
+
+/*
+ * Pseudo-random generation functions. Useful to do some coverage
+ * tests.
+ */
+
+/* Amplitude of the random number generation */
+#define RAND_MAX 4294967291U
+
+/* Pseudo-random number generation (MT unsafe) */
+unsigned long int random (void);
+
+/* Set random seed (MT unsafe) */
+void srandom (unsigned long int seed);
+
 #endif /* _SOS_KLIBC_H_ */

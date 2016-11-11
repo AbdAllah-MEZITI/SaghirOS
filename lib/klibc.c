@@ -142,6 +142,40 @@ int strncmp(register const char *s1, register const char *s2, register int len)
 }
 
 
+static unsigned long int _random_seed = 93186752;
+
+/**
+ * The following code is borrowed from Glenn Rhoads.
+ * http://remus.rutgers.edu/~rhoads/Code/code.html
+ * License to be defined...
+ */
+unsigned long int random (void)
+{
+/* The following parameters are recommended settings based on research
+   uncomment the one you want. */
+
+/* For RAND_MAX == 4294967291 */
+   static unsigned int a = 1588635695, q = 2, r = 1117695901;
+/* static unsigned int a = 1223106847, m = 4294967291U, q = 3, r = 625646750;*/
+/* static unsigned int a = 279470273, m = 4294967291U, q = 15, r = 102913196;*/
+
+/* For RAND_MAX == 2147483647 */
+/* static unsigned int a = 1583458089, m = 2147483647, q = 1, r = 564025558; */
+/* static unsigned int a = 784588716, m = 2147483647, q = 2, r = 578306215;  */
+/* static unsigned int a = 16807, m = 2147483647, q = 127773, r = 2836;      */
+/* static unsigned int a = 950706376, m = 2147483647, q = 2, r = 246070895;  */
+
+   _random_seed = a*(_random_seed % q) - r*(_random_seed / q);
+   return _random_seed;
+}
+
+
+void srandom (unsigned long int seed)
+{
+  _random_seed = seed;
+}
+
+
 /* I (d2) borrowed and rewrote this for Nachos/INSA Rennes. Thanks to
    them for having kindly allowed me to do so. */
 int vsnprintf(char *buff, sos_size_t len, const char * format, va_list ap)
@@ -213,6 +247,9 @@ int vsnprintf(char *buff, sos_size_t len, const char * format, va_list ap)
 	      break;
 	    }
 
+	  case 'p':
+	    PUTCHAR('0');
+	    PUTCHAR('x');
 	  case 'x':
 	    {
 	      unsigned int hexa = va_arg(ap,int);
